@@ -6,11 +6,12 @@ document.title = APP_NAME;
 app.innerHTML = `<h1>${APP_NAME}</h1>`;
 const canvas = document.querySelector<HTMLCanvasElement>("#canvas")!;
 const canvas_ctx = canvas.getContext("2d")!;
-enum Brushes{
-    thin = 1,
-    thick = 3
+enum Brush{
+    thin = 2,
+    thick = 4
 };
-let currentBrush: number = Brushes.thin;          // Index for which brush from possibleBrushes is selected
+let currentBrush: Brush = Brush.thin;
+let currentSticker: string = "";
 const bus = new EventTarget();
 /* Possible Event Names:
 drawing_changed
@@ -26,12 +27,11 @@ type Point = {
     y: number
 }
 type Line = Point[];
-interface LineObject {
-    line: Line,
+interface DrawableObject {
     drag(point: Point): void,
     display(ctx: CanvasRenderingContext2D): void
 }
-class MarkerLine implements LineObject{
+class MarkerLine implements DrawableObject{
     line: Line;
     lineWidth: number;
 
@@ -58,68 +58,94 @@ class MarkerLine implements LineObject{
     }
 
 }
-const lines: MarkerLine[]= [];
-let currentLine: MarkerLine | null;
-const redoStack: MarkerLine[] = [];
-
-class Cursor{
+class StickerObject implements DrawableObject{
     x: number;
     y: number;
-    constructor(point: Point){
+    sticker: string;
+
+    constructor (point: Point, sticker: string){
         this.x = point.x;
         this.y = point.y;
+        this.sticker = sticker;
+    }
+    drag(point: Point){
+        this.x = point.x;
+        this.y = point.y;
+    }
+    display(ctx: CanvasRenderingContext2D): void {
+        ctx.fillText(this.sticker, this.x-7, this.y+4);
+    }
+}
+
+interface CursorCommand{
+    x: number,
+    y: number,
+    moved(point: Point): void,
+    draw(ctx: CanvasRenderingContext2D): void
+}
+abstract class BasicCursor implements CursorCommand{
+    x: number;
+    y: number;
+    constructor(){
+        this.x = 2*canvas.width;
+        this.y = 2*canvas.height;
     }
     moved(point: Point){
         this.x = point.x;
         this.y = point.y;
         notifyBus("tool_moved");
     }
+    abstract draw(ctx: CanvasRenderingContext2D): void
+}
+class BrushCursor extends BasicCursor{
     draw(ctx: CanvasRenderingContext2D){
         ctx.beginPath()
         ctx.arc(this.x, this.y, currentBrush, 0, 2*Math.PI);
         ctx.fill();
     }
 }
-let cursorCommand: Cursor | null = null;
+class StickerCursor extends BasicCursor{
+    draw(ctx: CanvasRenderingContext2D){
+        //ctx.font = "64px"
+        ctx.fillText(currentSticker, this.x-7, this.y+4);
+    }
+}
+
+const lines: DrawableObject[]= [];
+const redoStack: DrawableObject[] = [];
+let currentDraw: DrawableObject | null = null;
+let cursorCommand: BasicCursor = new BrushCursor;
 
 // Add mouse detection to Canvas
 canvas.addEventListener("mousedown", (e)=>{
-    currentLine = new MarkerLine({x: e.offsetX, y: e.offsetY}, currentBrush);
+    const location: Point = {x: e.offsetX, y: e.offsetY};
+    if (cursorCommand instanceof StickerCursor){
+        currentDraw = new StickerObject(location, currentSticker);
+    }else{
+        currentDraw = new MarkerLine(location, currentBrush);       // default to marker if cannot compute selected cursor
+    }
     redoStack.length = 0;
-    lines.push(currentLine);
+    lines.push(currentDraw);
 
     notifyBus("drawing_changed");
 })
 canvas.addEventListener("mousemove", (e)=>{
     const location: Point = {x: e.offsetX, y:e.offsetY};
     if (e.buttons == 1){
-        currentLine!.drag(location);
+        currentDraw!.drag(location);
         notifyBus("drawing_changed");
     }
     cursorCommand!.moved(location);
 })
 canvas.addEventListener("mouseup", ()=>{
-    currentLine = null;
+    currentDraw = null;
 })
 canvas.addEventListener("mouseenter", (e)=>{
-    cursorCommand = new Cursor({x: e.offsetX, y: e.offsetY});
-    notifyBus("tool_moved");
+    cursorCommand.moved({x: e.offsetX, y: e.offsetY});                // Change to be based on selection
 })
 canvas.addEventListener("mouseleave", ()=>{
-    cursorCommand = null;
-    notifyBus("tool_moved");
+    cursorCommand.moved({x: 2*canvas.width,y: 2*canvas.height});
 })
-
-// Add redraw event to canvas
-function refresh(){
-    canvas_ctx.clearRect(0, 0, canvas.width, canvas.height);
-    for (const line of lines){  // line is a MarkerLine object
-        line.display(canvas_ctx);
-    }
-    if (cursorCommand){
-        cursorCommand.draw(canvas_ctx);
-    }
-}
 
 
 // Add button to clear Canvas
@@ -144,7 +170,6 @@ undoButton.addEventListener("click", ()=>{
         notifyBus("drawing_changed");
     }
 })
-
 const redoButton = document.createElement("button");
 redoButton.innerHTML = "redo";
 editButtonsContainer.append(redoButton);
@@ -155,20 +180,54 @@ redoButton.addEventListener("click", ()=>{
     }
 })
 
+
 // Add buttons to change drawn line width
 const brushContainer: HTMLDivElement = document.createElement("div");
 document.body.append(brushContainer);
-
 const thinBrushButton = document.createElement("button");
 thinBrushButton.innerHTML = "thin";
 brushContainer.append(thinBrushButton);
 thinBrushButton.addEventListener("click", ()=>{
-    currentBrush = Brushes.thin;
+    currentBrush = Brush.thin;
+    cursorCommand = new BrushCursor();
 })
-
 const thickBrushButton = document.createElement("button");
 thickBrushButton.innerHTML = "thick";
 brushContainer.append(thickBrushButton);
 thickBrushButton.addEventListener("click", ()=>{
-    currentBrush = Brushes.thick;
+    currentBrush = Brush.thick;
+    cursorCommand = new BrushCursor();
 })
+
+// Add div to hold sticker buttons
+const stickerContainer: HTMLDivElement = document.createElement("div");
+document.body.append(stickerContainer);
+/*enum Sticker{
+    star = "⭐",
+    heart = "💜",
+    skull = "💀"
+}*/
+// Add buttons to select sticker
+function addSticker(sticker: string){
+    const newStickerButton = document.createElement("button");
+    newStickerButton.innerHTML = sticker;
+    newStickerButton.addEventListener("click",()=>{
+        currentSticker = sticker;
+        cursorCommand = new StickerCursor();
+    })
+    stickerContainer.append(newStickerButton);
+}
+addSticker("⭐");
+addSticker("💜");
+addSticker("💀");
+
+// define how to redraw canvas
+function refresh(){
+    canvas_ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (const line of lines){  // line is a MarkerLine object
+        line.display(canvas_ctx);
+    }
+    if (cursorCommand){
+        cursorCommand.draw(canvas_ctx);
+    }
+}
