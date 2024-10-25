@@ -9,6 +9,13 @@ const cursor = {
     x: 0,
     y: 0
 };
+const drawing_changed = new Event("drawing_changed")
+interface straightLine{
+    x: number,
+    y: number
+}
+const lines: straightLine[][]= [];
+let currentLine: straightLine[] = [];
 
 document.title = APP_NAME;
 app.innerHTML = `<h1>${APP_NAME}</h1>`;
@@ -18,21 +25,42 @@ canvas.addEventListener("mousedown", (e)=>{
     cursor.active = true;
     cursor.x = e.offsetX;
     cursor.y = e.offsetY;
-    console.log("mouse down on canvas")
+    
+    currentLine.push({x: cursor.x, y: cursor.y});
+    lines.push(currentLine);
+
+    canvas.dispatchEvent(drawing_changed);
 })
 canvas.addEventListener("mousemove", (e)=>{
     if (cursor.active){
-        canvas_ctx.beginPath();
-        canvas_ctx.moveTo(cursor.x, cursor.y);
-        canvas_ctx.lineTo(e.offsetX, e.offsetY);
-        canvas_ctx.stroke();
         cursor.x = e.offsetX;
         cursor.y = e.offsetY;
+        currentLine.push({x: cursor.x, y:cursor.y});
+
+        canvas.dispatchEvent(drawing_changed);
     }
 })
 canvas.addEventListener("mouseup", ()=>{
     cursor.active = false;
+    currentLine = [];
 })
+
+// Add redraw event to canvas
+canvas.addEventListener("drawing_changed", ()=>{
+    canvas_ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (const line of lines){
+        if (line.length >= 2){
+            canvas_ctx.beginPath();
+            const {x,y} = line[0];
+            canvas_ctx.moveTo(x, y);
+            for (const {x,y} of line){
+                canvas_ctx.lineTo(x,y)
+            }
+            canvas_ctx.stroke();
+        }
+    }
+})
+
 
 // Add button to clear Canvas
 const clearButton = document.createElement("button");
