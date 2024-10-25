@@ -93,3 +93,10 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+#canvas {
+  border: 2px solid purple;
+  border-radius: 10%;
+  background-color: white;
+  filter: drop-shadow(0 0 2rem purple);
+}
