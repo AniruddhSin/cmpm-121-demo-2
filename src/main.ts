@@ -10,12 +10,13 @@ const cursor = {
     y: 0
 };
 const drawing_changed = new Event("drawing_changed")
-interface straightLine{
+interface Point{
     x: number,
     y: number
 }
-const lines: straightLine[][]= [];
-let currentLine: straightLine[] = [];
+const lines: Point[][]= [];
+let currentLine: Point[] = [];
+const redoStack: Point[][] = [];
 
 document.title = APP_NAME;
 app.innerHTML = `<h1>${APP_NAME}</h1>`;
@@ -26,6 +27,7 @@ canvas.addEventListener("mousedown", (e)=>{
     cursor.x = e.offsetX;
     cursor.y = e.offsetY;
     
+    redoStack.length = 0;
     currentLine.push({x: cursor.x, y: cursor.y});
     lines.push(currentLine);
 
@@ -67,6 +69,28 @@ const clearButton = document.createElement("button");
 clearButton.innerHTML = "clear";
 clearButton.addEventListener("click", ()=>{
     canvas_ctx.clearRect(0, 0, canvas.width, canvas.height);
+    lines.length = 0;
 })
 document.body.append(clearButton);
 
+// Add undo and redo buttons
+const undoButton = document.createElement("button");
+undoButton.innerHTML = "undo";
+document.body.append(undoButton);
+undoButton.addEventListener("click", ()=>{
+    if (lines.length > 0){
+        redoStack.push(lines.pop()!);
+        canvas.dispatchEvent(drawing_changed);
+    }
+})
+
+
+const redoButton = document.createElement("button");
+redoButton.innerHTML = "redo";
+document.body.append(redoButton);
+redoButton.addEventListener("click", ()=>{
+    if (redoStack.length > 0){
+        lines.push(redoStack.pop()!);
+        canvas.dispatchEvent(drawing_changed);
+    }
+})
