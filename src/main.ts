@@ -6,13 +6,21 @@ document.title = APP_NAME;
 app.innerHTML = `<h1>${APP_NAME}</h1>`;
 const canvas = document.querySelector<HTMLCanvasElement>("#canvas")!;
 const canvas_ctx = canvas.getContext("2d")!;
-let mouseHeld: boolean = false;
 enum Brushes{
     thin = 1,
     thick = 3
 };
 let currentBrush: number = Brushes.thin;          // Index for which brush from possibleBrushes is selected
-const drawing_changed = new Event("drawing_changed")
+const bus = new EventTarget();
+/* Possible Event Names:
+drawing_changed
+tool_moved
+*/
+function notifyBus (eventName: string){
+    bus.dispatchEvent(new Event(eventName));
+}
+bus.addEventListener("drawing_changed", refresh);
+bus.addEventListener("tool_moved", refresh);
 type Point = {
     x: number,
     y: number
@@ -54,37 +62,69 @@ const lines: MarkerLine[]= [];
 let currentLine: MarkerLine | null;
 const redoStack: MarkerLine[] = [];
 
+class Cursor{
+    x: number;
+    y: number;
+    constructor(point: Point){
+        this.x = point.x;
+        this.y = point.y;
+    }
+    moved(point: Point){
+        this.x = point.x;
+        this.y = point.y;
+        notifyBus("tool_moved");
+    }
+    draw(ctx: CanvasRenderingContext2D){
+        ctx.beginPath()
+        ctx.arc(this.x, this.y, currentBrush, 0, 2*Math.PI);
+        ctx.fill();
+    }
+}
+let cursorCommand: Cursor | null = null;
+
 // Add mouse detection to Canvas
 canvas.addEventListener("mousedown", (e)=>{
-    mouseHeld = true;
     currentLine = new MarkerLine({x: e.offsetX, y: e.offsetY}, currentBrush);
     redoStack.length = 0;
     lines.push(currentLine);
 
-    canvas.dispatchEvent(drawing_changed);
+    notifyBus("drawing_changed");
 })
 canvas.addEventListener("mousemove", (e)=>{
-    if (mouseHeld){
-        currentLine!.drag({x: e.offsetX, y:e.offsetY})
-
-        canvas.dispatchEvent(drawing_changed);
+    const location: Point = {x: e.offsetX, y:e.offsetY};
+    if (e.buttons == 1){
+        currentLine!.drag(location);
+        notifyBus("drawing_changed");
     }
+    cursorCommand!.moved(location);
 })
 canvas.addEventListener("mouseup", ()=>{
-    mouseHeld = false;
     currentLine = null;
+})
+canvas.addEventListener("mouseenter", (e)=>{
+    cursorCommand = new Cursor({x: e.offsetX, y: e.offsetY});
+    notifyBus("tool_moved");
+})
+canvas.addEventListener("mouseleave", ()=>{
+    cursorCommand = null;
+    notifyBus("tool_moved");
 })
 
 // Add redraw event to canvas
-canvas.addEventListener("drawing_changed", ()=>{
+function refresh(){
     canvas_ctx.clearRect(0, 0, canvas.width, canvas.height);
     for (const line of lines){  // line is a MarkerLine object
         line.display(canvas_ctx);
     }
-})
+    if (cursorCommand){
+        cursorCommand.draw(canvas_ctx);
+    }
+}
 
 
 // Add button to clear Canvas
+const editButtonsContainer = document.createElement("div");
+document.body.append(editButtonsContainer);
 const clearButton = document.createElement("button");
 clearButton.innerHTML = "clear";
 clearButton.addEventListener("click", ()=>{
@@ -92,26 +132,26 @@ clearButton.addEventListener("click", ()=>{
     lines.length = 0;
     redoStack.length = 0;
 })
-document.body.append(clearButton);
+editButtonsContainer.append(clearButton);
 
 // Add undo and redo buttons
 const undoButton = document.createElement("button");
 undoButton.innerHTML = "undo";
-document.body.append(undoButton);
+editButtonsContainer.append(undoButton);
 undoButton.addEventListener("click", ()=>{
     if (lines.length > 0){
         redoStack.push(lines.pop()!);
-        canvas.dispatchEvent(drawing_changed);
+        notifyBus("drawing_changed");
     }
 })
 
 const redoButton = document.createElement("button");
 redoButton.innerHTML = "redo";
-document.body.append(redoButton);
+editButtonsContainer.append(redoButton);
 redoButton.addEventListener("click", ()=>{
     if (redoStack.length > 0){
         lines.push(redoStack.pop()!);
-        canvas.dispatchEvent(drawing_changed);
+        notifyBus("drawing_changed");
     }
 })
 
