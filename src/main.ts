@@ -7,35 +7,35 @@ app.innerHTML = `<h1>${APP_NAME}</h1>`;
 const canvas = document.querySelector<HTMLCanvasElement>("#canvas")!;
 const canvas_ctx = canvas.getContext("2d")!;
 let mouseHeld: boolean = false;
+enum Brushes{
+    thin = 1,
+    thick = 3
+};
+let currentBrush: number = Brushes.thin;          // Index for which brush from possibleBrushes is selected
 const drawing_changed = new Event("drawing_changed")
 type Point = {
     x: number,
     y: number
 }
 type Line = Point[];
-/*
-step 6:
-make a class that represents one "line" drawn by a single mousedown event
-add each of these "lines" to the redo line stack
-lines array should be an array of LineObjects
-these objects will have a starting point from when to draw and a display method to draw out the lines
-*/
 interface LineObject {
     line: Line,
     drag(point: Point): void,
     display(ctx: CanvasRenderingContext2D): void
 }
-
 class MarkerLine implements LineObject{
     line: Line;
+    lineWidth: number;
 
-    constructor (point: Point){
+    constructor (point: Point, lineWidth: number){
         this.line = [point];
+        this.lineWidth = lineWidth;
     }
     drag(point: Point){
         this.line.push(point);
     }
-    display(ctx: CanvasRenderingContext2D): void {
+    display(ctx: CanvasRenderingContext2D){
+        ctx.lineWidth = this.lineWidth;
         ctx.beginPath();
         if (this.line.length > 0){
             const {x,y} = this.line[0];
@@ -57,7 +57,7 @@ const redoStack: MarkerLine[] = [];
 // Add mouse detection to Canvas
 canvas.addEventListener("mousedown", (e)=>{
     mouseHeld = true;
-    currentLine = new MarkerLine({x: e.offsetX, y: e.offsetY});
+    currentLine = new MarkerLine({x: e.offsetX, y: e.offsetY}, currentBrush);
     redoStack.length = 0;
     lines.push(currentLine);
 
@@ -113,4 +113,22 @@ redoButton.addEventListener("click", ()=>{
         lines.push(redoStack.pop()!);
         canvas.dispatchEvent(drawing_changed);
     }
+})
+
+// Add buttons to change drawn line width
+const brushContainer: HTMLDivElement = document.createElement("div");
+document.body.append(brushContainer);
+
+const thinBrushButton = document.createElement("button");
+thinBrushButton.innerHTML = "thin";
+brushContainer.append(thinBrushButton);
+thinBrushButton.addEventListener("click", ()=>{
+    currentBrush = Brushes.thin;
+})
+
+const thickBrushButton = document.createElement("button");
+thickBrushButton.innerHTML = "thick";
+brushContainer.append(thickBrushButton);
+thickBrushButton.addEventListener("click", ()=>{
+    currentBrush = Brushes.thick;
 })
