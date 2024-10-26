@@ -1,3 +1,15 @@
+/**
+ * Step 11 Completed Implicitly.
+ * I adjusted the stroke thickness and default font of the canvas so that stickers are slightly bigger
+ * in previous commits. I did not know we were not supposed to change their values until now.
+ * thin brush value changed from 1 to 2 in previous commits
+ * thick brush value changed from 2 to 4 in previous commits
+ * font of canvas_ctx was changed to "13px sans-serif" in previous commits
+ * I gave the "Add Sticker" button some piz
+ * I am content with names like "Marker" and "Sticker"
+ */
+
+
 import "./style.css";
 
 const APP_NAME = "Lets Get Sketchy";
@@ -187,6 +199,9 @@ redoButton.addEventListener("click", ()=>{
 // Add buttons to change drawn line width
 const brushContainer: HTMLDivElement = document.createElement("div");
 document.body.append(brushContainer);
+const brushContainerLabel: HTMLHeadingElement = document.createElement("h2");
+brushContainerLabel.innerText = "Brushes";
+brushContainer.append(brushContainerLabel);
 const thinBrushButton = document.createElement("button");
 thinBrushButton.innerHTML = "thin";
 brushContainer.append(thinBrushButton);
