@@ -21,8 +21,10 @@ tool_moved
 function notifyBus (eventName: string){
     bus.dispatchEvent(new Event(eventName));
 }
-bus.addEventListener("drawing_changed", refresh);
-bus.addEventListener("tool_moved", refresh);
+//bus.addEventListener("drawing_changed", refresh(canvas,canvas_ctx));
+//bus.addEventListener("tool_moved", refresh(canvas,canvas_ctx));
+bus.addEventListener("drawing_changed", redraw);
+bus.addEventListener("tool_moved", redraw);
 type Point = {
     x: number,
     y: number
@@ -228,10 +230,33 @@ addSticker("⭐");
 addSticker("💜");
 addSticker("💀");
 
+
+// Add button to export high res image
+const exportButton = document.createElement("button");
+exportButton.innerText = "Export";
+document.body.append(exportButton);
+exportButton.addEventListener("click", ()=>{
+    const exportCanvas = document.createElement("canvas");
+    exportCanvas.style.backgroundColor = "white";
+    exportCanvas.width = 1024;
+    exportCanvas.height = 1024;
+    const export_ctx = exportCanvas.getContext("2d")!;
+    export_ctx.scale(4,4);
+
+    for (const line of lines){
+        line.display(export_ctx);
+    }
+    const anchor = document.createElement("a");
+    anchor.href = exportCanvas.toDataURL("image/png");
+    anchor.download = "sketchpad.png";
+    anchor.click();
+
+})
+
 // define how to redraw canvas
-function refresh(){
+function redraw(){
     canvas_ctx.clearRect(0, 0, canvas.width, canvas.height);
-    for (const line of lines){  // line is a MarkerLine object
+    for (const line of lines){
         line.display(canvas_ctx);
     }
     if (cursorCommand){
