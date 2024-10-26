@@ -6,6 +6,7 @@ document.title = APP_NAME;
 app.innerHTML = `<h1>${APP_NAME}</h1>`;
 const canvas = document.querySelector<HTMLCanvasElement>("#canvas")!;
 const canvas_ctx = canvas.getContext("2d")!;
+canvas_ctx.font = "13px sans-serif";
 enum Brush{
     thin = 2,
     thick = 4
@@ -202,12 +203,18 @@ thickBrushButton.addEventListener("click", ()=>{
 // Add div to hold sticker buttons
 const stickerContainer: HTMLDivElement = document.createElement("div");
 document.body.append(stickerContainer);
-/*enum Sticker{
-    star = "⭐",
-    heart = "💜",
-    skull = "💀"
-}*/
-// Add buttons to select sticker
+const addStickerButton = document.createElement("button");
+//addStickerButton.id = "canvas";
+addStickerButton.innerText = "Add Sticker";
+addStickerButton.style.filter = "drop-shadow(0 0 0.3rem purple)";
+stickerContainer.append(addStickerButton);
+addStickerButton.addEventListener("click",()=>{
+    const possibleSticker = prompt("Enter Sticker");
+    if (possibleSticker){
+        addSticker(possibleSticker);
+    }
+})
+// Create new Sticker Button with given string
 function addSticker(sticker: string){
     const newStickerButton = document.createElement("button");
     newStickerButton.innerHTML = sticker;
