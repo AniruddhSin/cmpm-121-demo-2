@@ -25,6 +25,7 @@ a:hover {
 body {
   margin: 0;
   display: flex;
+  flex-direction: column;
   place-items: center;
   min-width: 320px;
   min-height: 100vh;
@@ -99,4 +100,5 @@ button:focus-visible {
   border-radius: 10%;
   background-color: white;
   filter: drop-shadow(0 0 2rem purple);
+  margin: 32px 0;
 }

@@ -7,6 +7,11 @@
   <body>
     <div id="app"></div>
     <canvas id="canvas" width="256" height="256"></canvas>
+    <div>
+      <label for="rotationSlider">Rotate Sticker (0-360):</label>
+      <input type="range" id="rotationSlider" min="0" max="360" value="0">
+      <output id="outputValue">0</output>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

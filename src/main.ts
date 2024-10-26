@@ -1,15 +1,3 @@
-/**
- * Step 11 Completed Implicitly.
- * I adjusted the stroke thickness and default font of the canvas so that stickers are slightly bigger
- * in previous commits. I did not know we were not supposed to change their values until now.
- * thin brush value changed from 1 to 2 in previous commits
- * thick brush value changed from 2 to 4 in previous commits
- * font of canvas_ctx was changed to "13px sans-serif" in previous commits
- * I gave the "Add Sticker" button some piz
- * I am content with names like "Marker" and "Sticker"
- */
-
-
 import "./style.css";
 
 const APP_NAME = "Lets Get Sketchy";
@@ -19,6 +7,14 @@ app.innerHTML = `<h1>${APP_NAME}</h1>`;
 const canvas = document.querySelector<HTMLCanvasElement>("#canvas")!;
 const canvas_ctx = canvas.getContext("2d")!;
 canvas_ctx.font = "13px sans-serif";
+// Get slider value and update text
+const slider: HTMLInputElement | null = document.querySelector<HTMLInputElement>('#rotationSlider');
+const output: HTMLOutputElement | null = document.querySelector<HTMLOutputElement>('#outputValue');
+if (slider && output) {
+    slider.addEventListener('input', () => {
+        output.innerHTML = slider.value;
+    });
+}
 enum Brush{
     thin = 2,
     thick = 4
@@ -77,18 +73,26 @@ class StickerObject implements DrawableObject{
     x: number;
     y: number;
     sticker: string;
+    rotation: number;
 
-    constructor (point: Point, sticker: string){
+    constructor (point: Point, sticker: string, rotation: number){
         this.x = point.x;
         this.y = point.y;
         this.sticker = sticker;
+        this.rotation = rotation*Math.PI/180;
     }
     drag(point: Point){
         this.x = point.x;
         this.y = point.y;
     }
     display(ctx: CanvasRenderingContext2D): void {
-        ctx.fillText(this.sticker, this.x-7, this.y+4);
+        ctx.translate(this.x, this.y)
+        ctx.rotate(this.rotation);
+        const textMetric = ctx.measureText(this.sticker);
+        const textWidth = textMetric.width;
+        const textHeight = textMetric.actualBoundingBoxAscent - textMetric.actualBoundingBoxDescent;
+        ctx.fillText(this.sticker, -textWidth/2, -textHeight/2);
+        ctx.resetTransform();
     }
 }
 
@@ -121,8 +125,14 @@ class BrushCursor extends BasicCursor{
 }
 class StickerCursor extends BasicCursor{
     draw(ctx: CanvasRenderingContext2D){
-        //ctx.font = "64px"
-        ctx.fillText(currentSticker, this.x-7, this.y+4);
+        ctx.translate(this.x, this.y)
+        const radians = +slider!.value * Math.PI / 180;
+        ctx.rotate(radians);
+        const textMetric = ctx.measureText(currentSticker);
+        const textWidth = textMetric.width;
+        const textHeight = textMetric.actualBoundingBoxAscent - textMetric.actualBoundingBoxDescent;
+        ctx.fillText(currentSticker, -textWidth/2, -textHeight/2);
+        ctx.resetTransform();
     }
 }
 
@@ -135,7 +145,7 @@ let cursorCommand: BasicCursor = new BrushCursor;
 canvas.addEventListener("mousedown", (e)=>{
     const location: Point = {x: e.offsetX, y: e.offsetY};
     if (cursorCommand instanceof StickerCursor){
-        currentDraw = new StickerObject(location, currentSticker);
+        currentDraw = new StickerObject(location, currentSticker, +slider!.value);
     }else{
         currentDraw = new MarkerLine(location, currentBrush);       // default to marker if cannot compute selected cursor
     }
@@ -201,6 +211,7 @@ const brushContainer: HTMLDivElement = document.createElement("div");
 document.body.append(brushContainer);
 const brushContainerLabel: HTMLHeadingElement = document.createElement("h2");
 brushContainerLabel.innerText = "Brushes";
+brushContainerLabel.style.textAlign = "center";
 brushContainer.append(brushContainerLabel);
 const thinBrushButton = document.createElement("button");
 thinBrushButton.innerHTML = "thin";
@@ -220,8 +231,11 @@ thickBrushButton.addEventListener("click", ()=>{
 // Add div to hold sticker buttons
 const stickerContainer: HTMLDivElement = document.createElement("div");
 document.body.append(stickerContainer);
+const stickerContainerLabel: HTMLHeadingElement = document.createElement("h2");
+stickerContainerLabel.innerText = "Stickers";
+stickerContainerLabel.style.textAlign = "center";
+stickerContainer.append(stickerContainerLabel);
 const addStickerButton = document.createElement("button");
-//addStickerButton.id = "canvas";
 addStickerButton.innerText = "Add Sticker";
 addStickerButton.style.filter = "drop-shadow(0 0 0.3rem purple)";
 stickerContainer.append(addStickerButton);
@@ -248,8 +262,8 @@ addSticker("💀");
 
 // Add button to export high res image
 const exportButton = document.createElement("button");
-exportButton.innerText = "Export";
-document.body.append(exportButton);
+exportButton.innerText = "Export (PNG)";
+app.append(exportButton);
 exportButton.addEventListener("click", ()=>{
     const exportCanvas = document.createElement("canvas");
     exportCanvas.style.backgroundColor = "white";
