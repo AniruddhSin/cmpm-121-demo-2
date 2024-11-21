@@ -141,14 +141,19 @@ const redoStack: DrawableObject[] = [];
 let currentDraw: DrawableObject | null = null;
 let cursorCommand: BasicCursor = new BrushCursor;
 
+// Returns a new DrawableObject based on the current cursorCommand
+function createDrawableObject(location: Point): DrawableObject {
+    if (cursorCommand instanceof StickerCursor) {
+        return new StickerObject(location, currentSticker, +slider!.value);
+    } else {
+        return new MarkerLine(location, currentBrush);
+    }
+}
+
 // Add mouse detection to Canvas
 canvas.addEventListener("mousedown", (e)=>{
     const location: Point = {x: e.offsetX, y: e.offsetY};
-    if (cursorCommand instanceof StickerCursor){
-        currentDraw = new StickerObject(location, currentSticker, +slider!.value);
-    }else{
-        currentDraw = new MarkerLine(location, currentBrush);       // default to marker if cannot compute selected cursor
-    }
+    currentDraw = createDrawableObject(location);
     redoStack.length = 0;
     lines.push(currentDraw);
 
@@ -213,20 +218,29 @@ const brushContainerLabel: HTMLHeadingElement = document.createElement("h2");
 brushContainerLabel.innerText = "Brushes";
 brushContainerLabel.style.textAlign = "center";
 brushContainer.append(brushContainerLabel);
-const thinBrushButton = document.createElement("button");
-thinBrushButton.innerHTML = "thin";
-brushContainer.append(thinBrushButton);
-thinBrushButton.addEventListener("click", ()=>{
+
+// Create a button with a label and click handler
+function createButton(
+    parent: HTMLElement,
+    label: string,
+    clickHandler: () => void
+): HTMLButtonElement {
+    const button = document.createElement("button");
+    button.innerHTML = label;
+    button.addEventListener("click", clickHandler);
+    parent.append(button);
+    return button;
+}
+
+// Add buttons to change brush width
+createButton(brushContainer, "thin", () => {
     currentBrush = Brush.thin;
     cursorCommand = new BrushCursor();
-})
-const thickBrushButton = document.createElement("button");
-thickBrushButton.innerHTML = "thick";
-brushContainer.append(thickBrushButton);
-thickBrushButton.addEventListener("click", ()=>{
+});
+createButton(brushContainer, "thick", () => {
     currentBrush = Brush.thick;
     cursorCommand = new BrushCursor();
-})
+});
 
 // Add div to hold sticker buttons
 const stickerContainer: HTMLDivElement = document.createElement("div");
